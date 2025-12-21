@@ -1,26 +1,19 @@
-import { Router } from "express";
+import { Router } from 'express'
+import {
+  createCategoryController,
+  getAllCategoriesController,
+  getCategoryController,
+  editCategoryController,
+  deleteCategoryController,
+} from '../controllers/categories.controller'
+import { authenticateUser } from '../middlewares/auth.middleware'
 
-import { authenticateUser } from "../middlewares/auth.middleware";
+const router = Router()
 
+router.post('/create', createCategoryController)
+router.get('/getAll', authenticateUser, getAllCategoriesController)
+router.get('get/:id', getCategoryController)
+router.put('update/:id', editCategoryController)
+router.delete('/:id', deleteCategoryController)
 
-const router = Router();
-
-// Get all categories (with optional pagination)
-router.get("/", authenticateUser, );
-
-// Get single category by id
-router.get("/:categoryId", authenticateUser, );
-
-// Create new category
-router.post("/", authenticateUser, );
-
-// Update existing category
-router.put("/:categoryId", authenticateUser, );
-
-// Delete category
-router.delete("/:categoryId", authenticateUser, );
-
-// Delete multiple selected categories (accepts array of categoryIds in body)
-router.post("/delete-selected", authenticateUser, );
-
-export default router;
+export default router
