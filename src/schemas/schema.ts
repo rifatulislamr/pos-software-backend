@@ -1,4 +1,5 @@
-import { avg, relations, sql } from 'drizzle-orm'
+import { avg, InferInsertModel, InferSelectModel, relations, sql } from 'drizzle-orm'
+import { bigint, json } from 'drizzle-orm/gel-core'
 import {
   boolean,
   int,
@@ -155,6 +156,127 @@ export const customerModel = mysqlTable('customers', {
     .onUpdateNow(),
 })
 
+// Suppliers model
+export const supplierModel = mysqlTable('suppliers', {
+  supplierId: int('supplier_id').primaryKey().autoincrement(),
+
+  // Basic info
+  name: varchar('name', { length: 255 }).notNull(),
+  email: varchar('email', { length: 255 }).notNull(),
+  phone: varchar('phone', { length: 50 }),
+  address: varchar('address', { length: 255 }),
+  city: varchar('city', { length: 100 }),
+  region: varchar('region', { length: 100 }),
+  postalCode: varchar('postal_code', { length: 20 }),
+  country: varchar('country', { length: 100 }).default('Bangladesh'),
+  supplierCode: varchar('supplier_code', { length: 50 }),
+  note: text('note'),
+
+  // Stats
+  totalOrders: int('total_orders').default(sql`0`),
+  totalSpent: decimal('total_spent', { precision: 10, scale: 2 }).default(sql`0.00`),
+  points: decimal('points', { precision: 10, scale: 2 }).default(sql`0.00`),
+
+  // Availability
+  availableForSale: boolean('available_for_sale').default(true),
+
+  // Timestamps
+  createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: timestamp('updated_at').default(sql`CURRENT_TIMESTAMP`).onUpdateNow(),
+})
+
+
+// Purchase Orders
+export const purchaseOrderModel = mysqlTable('purchase_orders', {
+  purchaseOrderId: int('purchase_order_id')
+    .primaryKey()
+    .autoincrement(),
+
+  orderNumber: varchar('order_number', { length: 50 }).notNull(),
+  orderedBy: varchar('ordered_by', { length: 100 }).notNull(),
+
+  supplierId: int('supplier_id')
+    .notNull()
+    .references(() => supplierModel.supplierId, {
+      onDelete: 'restrict',
+      onUpdate: 'cascade',
+    }),
+
+  orderDate: varchar('order_date', { length: 20 }).notNull(),
+  expectedDate: varchar('expected_date', { length: 20 }),
+
+  destinationStore: varchar('destination_store', { length: 255 }),
+
+  status: mysqlEnum('status', [
+    'Draft',
+    'Pending',
+    'Partially received',
+    'Closed',
+  ]).default('Draft'),
+
+  received: varchar('received', { length: 50 }).default('0 of 0'),
+
+  notes: text('notes'),
+
+  createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: timestamp('updated_at')
+    .default(sql`CURRENT_TIMESTAMP`)
+    .onUpdateNow(),
+})
+
+//purchase_order_items
+export const purchaseOrderItemModel = mysqlTable(
+  'purchase_order_items',
+  {
+    poItemId: int('po_item_id')
+      .primaryKey()
+      .autoincrement(),
+
+    purchaseOrderId: int('purchase_order_id')
+      .notNull()
+      .references(() => purchaseOrderModel.purchaseOrderId, {
+        onDelete: 'cascade',
+      }),
+
+    itemId: int('item_id')
+      .notNull()
+      .references(() => itemModel.itemId),
+
+    quantity: int('quantity').notNull(),
+    receivedQty: int('received_qty').default(0),
+
+    purchaseCost: decimal('purchase_cost', {
+      precision: 10,
+      scale: 2,
+    }).notNull(),
+
+    amount: decimal('amount', {
+      precision: 10,
+      scale: 2,
+    }).notNull(),
+  }
+)
+
+//purchase_order_additional_costs
+export const purchaseOrderAdditionalCostModel = mysqlTable(
+  'purchase_order_additional_costs',
+  {
+    costId: int('cost_id')
+      .primaryKey()
+      .autoincrement(),
+
+    purchaseOrderId: int('purchase_order_id')
+      .notNull()
+      .references(() => purchaseOrderModel.purchaseOrderId, {
+        onDelete: 'cascade',
+      }),
+
+    name: varchar('name', { length: 255 }).notNull(),
+    amount: decimal('amount', { precision: 10, scale: 2 }).notNull(),
+  }
+)
+
+
 // ========================
 // Relations
 // ========================
@@ -194,6 +316,28 @@ export const userRolesRelations = relations(userRolesModel, ({ one }) => ({
   }),
 }))
 
+export const purchaseOrderRelations = relations(
+  purchaseOrderModel,
+  ({ one, many }) => ({
+    supplier: one(supplierModel, {
+      fields: [purchaseOrderModel.supplierId],
+      references: [supplierModel.supplierId],
+    }),
+    items: many(purchaseOrderItemModel),
+    additionalCosts: many(purchaseOrderAdditionalCostModel),
+  })
+)
+
+export const purchaseOrderItemRelations = relations(
+  purchaseOrderItemModel,
+  ({ one }) => ({
+    item: one(itemModel, {
+      fields: [purchaseOrderItemModel.itemId],
+      references: [itemModel.itemId],
+    }),
+  })
+)
+
 //users types
 export type User = typeof userModel.$inferSelect
 export type NewUser = typeof userModel.$inferInsert
@@ -215,3 +359,21 @@ export type NewItem = typeof itemModel.$inferInsert
 //customers types
 export type Customer = typeof customerModel.$inferSelect
 export type NewCustomer = typeof customerModel.$inferInsert
+
+// Supplier types
+export type Supplier = typeof supplierModel.$inferSelect
+export type NewSupplier = typeof supplierModel.$inferInsert
+
+//purchase order
+export type PurchaseOrder =
+  InferSelectModel<typeof purchaseOrderModel>
+export type NewPurchaseOrder =
+  InferInsertModel<typeof purchaseOrderModel>
+
+export type PurchaseOrderItem =
+  InferSelectModel<typeof purchaseOrderItemModel>
+export type NewPurchaseOrderItem =
+  InferInsertModel<typeof purchaseOrderItemModel>
+
+export type PurchaseOrderAdditionalCost =
+  InferSelectModel<typeof purchaseOrderAdditionalCostModel>
