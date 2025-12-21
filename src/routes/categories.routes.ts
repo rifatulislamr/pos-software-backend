@@ -10,10 +10,10 @@ import { authenticateUser } from '../middlewares/auth.middleware'
 
 const router = Router()
 
-router.post('/create', createCategoryController)
+router.post('/create',authenticateUser, createCategoryController)
 router.get('/getAll', authenticateUser, getAllCategoriesController)
-router.get('get/:id', getCategoryController)
-router.put('update/:id', editCategoryController)
-router.delete('/:id', deleteCategoryController)
+router.get('/get/:id',authenticateUser, getCategoryController)
+router.patch('/update/:id',authenticateUser, editCategoryController)
+router.delete('/delete/:id',authenticateUser, deleteCategoryController)
 
 export default router

@@ -6,6 +6,7 @@ import {
   timestamp,
   varchar,
   text,
+  decimal,
   double,
   date,
   mysqlEnum,
@@ -66,10 +67,93 @@ export const categoryModel = mysqlTable('categories', {
   name: varchar('name', { length: 100 }).notNull(),
   color: varchar('color', { length: 20 }).notNull(),
   createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: timestamp('updated_at').default(sql`CURRENT_TIMESTAMP`).onUpdateNow(),
+  updatedAt: timestamp('updated_at')
+    .default(sql`CURRENT_TIMESTAMP`)
+    .onUpdateNow(),
 })
 
+// Items table
+export const itemModel = mysqlTable('items', {
+  itemId: int('item_id').primaryKey().autoincrement(),
 
+  // Basic info
+  name: varchar('name', { length: 255 }).notNull(),
+  categoryId: int('category_id'),
+  description: text('description'),
+
+  // Availability
+  availableForSale: boolean('available_for_sale').default(true),
+  soldBy: varchar('sold_by', { length: 20 }).default('Each'),
+
+  // Pricing
+  price: decimal('price', { precision: 10, scale: 2 }),
+  cost: decimal('cost', { precision: 10, scale: 2 }),
+  margin: decimal('margin', { precision: 5, scale: 2 }),
+
+  // Identifiers
+  sku: varchar('sku', { length: 100 }),
+  barcode: varchar('barcode', { length: 100 }),
+
+  // Inventory
+  compositeItem: boolean('composite_item').default(false),
+  trackStock: boolean('track_stock').default(false),
+  inStock: int('in_stock').default(0),
+  lowStock: int('low_stock'),
+  primarySupplier: varchar('primary_supplier', { length: 255 }),
+
+  // POS Representation
+  color: varchar('color', { length: 20 }).default('#FFFFFF'),
+  shape: varchar('shape', { length: 20 }).default('check'),
+  imageUrl: varchar('image_url', { length: 500 }),
+
+  // Variant & Options (combined)
+  variantName: varchar('variant_name', { length: 100 }), // optional
+  optionName: varchar('option_name', { length: 50 }), // optional
+  optionValue: varchar('option_value', { length: 50 }), // optional
+  variantSku: varchar('variant_sku', { length: 100 }),
+  variantInStock: int('variant_in_stock'),
+
+  // Composite Components (JSON or CSV)
+  components: text('components'), // store childItemId + quantity + cost as JSON
+
+  // Timestamps
+  createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: timestamp('updated_at')
+    .default(sql`CURRENT_TIMESTAMP`)
+    .onUpdateNow(),
+})
+
+//customers model
+export const customerModel = mysqlTable('customers', {
+  customerId: int('customer_id').primaryKey().autoincrement(),
+
+  // Basic info
+  name: varchar('name', { length: 255 }).notNull(),
+  email: varchar('email', { length: 255 }).notNull(),
+  phone: varchar('phone', { length: 50 }),
+  address: varchar('address', { length: 255 }),
+  city: varchar('city', { length: 100 }),
+  region: varchar('region', { length: 100 }),
+  postalCode: varchar('postal_code', { length: 20 }),
+  country: varchar('country', { length: 100 }).default('Bangladesh'),
+  customerCode: varchar('customer_code', { length: 50 }),
+  note: text('note'),
+
+  // Stats
+  totalVisits: int('total_visits').default(sql`0`),
+  totalSpent: decimal('total_spent', { precision: 10, scale: 2 }).default(
+    sql`0.00`
+  ),
+  points: decimal('points', { precision: 10, scale: 2 }).default(sql`0.00`),
+  // Availability
+  availableForSale: boolean('available_for_sale').default(true),
+
+  // Timestamps
+  createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: timestamp('updated_at')
+    .default(sql`CURRENT_TIMESTAMP`)
+    .onUpdateNow(),
+})
 
 // ========================
 // Relations
@@ -110,8 +194,7 @@ export const userRolesRelations = relations(userRolesModel, ({ one }) => ({
   }),
 }))
 
-
-
+//users types
 export type User = typeof userModel.$inferSelect
 export type NewUser = typeof userModel.$inferInsert
 export type Role = typeof roleModel.$inferSelect
@@ -121,6 +204,14 @@ export type NewPermission = typeof permissionsModel.$inferInsert
 export type UserRole = typeof userRolesModel.$inferSelect
 export type NewUserRole = typeof userRolesModel.$inferInsert
 
-// categories
+// categories types
 export type Category = typeof categoryModel.$inferSelect
 export type NewCategory = typeof categoryModel.$inferInsert
+
+// items types
+export type Item = typeof itemModel.$inferSelect
+export type NewItem = typeof itemModel.$inferInsert
+
+//customers types
+export type Customer = typeof customerModel.$inferSelect
+export type NewCustomer = typeof customerModel.$inferInsert

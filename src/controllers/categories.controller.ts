@@ -29,7 +29,7 @@ export const createCategoryController = async (
   next: NextFunction
 ) => {
   try {
-    requirePermission(req, 'create category')
+    requirePermission(req, 'create_category')
     const categoryData = createCategorySchema.parse(req.body)
     const category = await createCategory(categoryData)
 
@@ -63,7 +63,7 @@ export const getCategoryController = async (
   next: NextFunction
 ) => {
   try {
-    requirePermission(req, 'view category')
+    requirePermission(req, 'view_category')
     const id: number = Number(req.params.id)
     const category = await getCategoryById(id)
 
@@ -79,7 +79,7 @@ export const editCategoryController = async (
   next: NextFunction
 ) => {
   try {
-    requirePermission(req, 'edit category')
+    requirePermission(req, 'edit_category')
     const id: number = Number(req.params.id)
     const categoryData = editCategorySchema.parse(req.body)
     const category = await updateCategory(id, categoryData)
@@ -96,7 +96,7 @@ export const deleteCategoryController = async (
   next: NextFunction
 ) => {
   try {
-    requirePermission(req, 'delete category')
+    requirePermission(req, 'delete_category')
     const id: number = Number(req.params.id)
     const result = await deleteCategory(id)
 
