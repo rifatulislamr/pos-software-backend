@@ -1,4 +1,5 @@
 {
     "files.autoSave": "afterDelay",
-    "editor.mouseWheelZoom": true
+    "editor.mouseWheelZoom": true,
+    "editor.fontSize": 16
 }
