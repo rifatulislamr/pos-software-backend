@@ -1,4 +1,10 @@
-import { avg, InferInsertModel, InferSelectModel, relations, sql } from 'drizzle-orm'
+import {
+  avg,
+  InferInsertModel,
+  InferSelectModel,
+  relations,
+  sql,
+} from 'drizzle-orm'
 import { bigint, json } from 'drizzle-orm/gel-core'
 import {
   boolean,
@@ -174,7 +180,9 @@ export const supplierModel = mysqlTable('suppliers', {
 
   // Stats
   totalOrders: int('total_orders').default(sql`0`),
-  totalSpent: decimal('total_spent', { precision: 10, scale: 2 }).default(sql`0.00`),
+  totalSpent: decimal('total_spent', { precision: 10, scale: 2 }).default(
+    sql`0.00`
+  ),
   points: decimal('points', { precision: 10, scale: 2 }).default(sql`0.00`),
 
   // Availability
@@ -182,15 +190,14 @@ export const supplierModel = mysqlTable('suppliers', {
 
   // Timestamps
   createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: timestamp('updated_at').default(sql`CURRENT_TIMESTAMP`).onUpdateNow(),
+  updatedAt: timestamp('updated_at')
+    .default(sql`CURRENT_TIMESTAMP`)
+    .onUpdateNow(),
 })
-
 
 // Purchase Orders
 export const purchaseOrderModel = mysqlTable('purchase_orders', {
-  purchaseOrderId: int('purchase_order_id')
-    .primaryKey()
-    .autoincrement(),
+  purchaseOrderId: int('purchase_order_id').primaryKey().autoincrement(),
 
   orderNumber: varchar('order_number', { length: 50 }).notNull(),
   orderedBy: varchar('ordered_by', { length: 100 }).notNull(),
@@ -225,45 +232,38 @@ export const purchaseOrderModel = mysqlTable('purchase_orders', {
 })
 
 //purchase_order_items
-export const purchaseOrderItemModel = mysqlTable(
-  'purchase_order_items',
-  {
-    poItemId: int('po_item_id')
-      .primaryKey()
-      .autoincrement(),
+export const purchaseOrderItemModel = mysqlTable('purchase_order_items', {
+  poItemId: int('po_item_id').primaryKey().autoincrement(),
 
-    purchaseOrderId: int('purchase_order_id')
-      .notNull()
-      .references(() => purchaseOrderModel.purchaseOrderId, {
-        onDelete: 'cascade',
-      }),
+  purchaseOrderId: int('purchase_order_id')
+    .notNull()
+    .references(() => purchaseOrderModel.purchaseOrderId, {
+      onDelete: 'cascade',
+    }),
 
-    itemId: int('item_id')
-      .notNull()
-      .references(() => itemModel.itemId),
+  itemId: int('item_id')
+    .notNull()
+    .references(() => itemModel.itemId),
 
-    quantity: int('quantity').notNull(),
-    receivedQty: int('received_qty').default(0),
+  quantity: int('quantity').notNull(),
+  receivedQty: int('received_qty').default(0),
 
-    purchaseCost: decimal('purchase_cost', {
-      precision: 10,
-      scale: 2,
-    }).notNull(),
+  purchaseCost: decimal('purchase_cost', {
+    precision: 10,
+    scale: 2,
+  }).notNull(),
 
-    amount: decimal('amount', {
-      precision: 10,
-      scale: 2,
-    }).notNull(),
-  }
-)
+  amount: decimal('amount', {
+    precision: 10,
+    scale: 2,
+  }).notNull(),
+})
 
 //purchase_order_additional_costs
 export const purchaseOrderAdditionalCostModel = mysqlTable(
   'purchase_order_additional_costs',
   {
-    costId: int('cost_id')
-      .primaryKey()
-      .autoincrement(),
+    costId: int('cost_id').primaryKey().autoincrement(),
 
     purchaseOrderId: int('purchase_order_id')
       .notNull()
@@ -275,7 +275,6 @@ export const purchaseOrderAdditionalCostModel = mysqlTable(
     amount: decimal('amount', { precision: 10, scale: 2 }).notNull(),
   }
 )
-
 
 // ========================
 // Relations
@@ -364,16 +363,19 @@ export type NewCustomer = typeof customerModel.$inferInsert
 export type Supplier = typeof supplierModel.$inferSelect
 export type NewSupplier = typeof supplierModel.$inferInsert
 
-//purchase order
-export type PurchaseOrder =
-  InferSelectModel<typeof purchaseOrderModel>
-export type NewPurchaseOrder =
-  InferInsertModel<typeof purchaseOrderModel>
+// Purchase Orders
+export type PurchaseOrder = typeof purchaseOrderModel.$inferSelect
 
-export type PurchaseOrderItem =
-  InferSelectModel<typeof purchaseOrderItemModel>
-export type NewPurchaseOrderItem =
-  InferInsertModel<typeof purchaseOrderItemModel>
+export type NewPurchaseOrder = typeof purchaseOrderModel.$inferInsert
 
+// Purchase Order Items
+export type PurchaseOrderItem = typeof purchaseOrderItemModel.$inferSelect
+
+export type NewPurchaseOrderItem = typeof purchaseOrderItemModel.$inferInsert
+
+// Purchase Order Additional Costs
 export type PurchaseOrderAdditionalCost =
-  InferSelectModel<typeof purchaseOrderAdditionalCostModel>
+  typeof purchaseOrderAdditionalCostModel.$inferSelect
+
+export type NewPurchaseOrderAdditionalCost =
+  typeof purchaseOrderAdditionalCostModel.$inferInsert
