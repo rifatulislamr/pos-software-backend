@@ -79,13 +79,18 @@ export const categoryModel = mysqlTable('categories', {
     .onUpdateNow(),
 })
 
-// Items table
+
+//items model
 export const itemModel = mysqlTable('items', {
   itemId: int('item_id').primaryKey().autoincrement(),
 
   // Basic info
   name: varchar('name', { length: 255 }).notNull(),
-  categoryId: int('category_id'),
+  // Foreign key reference to categoryModel
+  categoryId: int('category_id')
+    .notNull()
+    .references(() => categoryModel.categoryId),
+
   description: text('description'),
 
   // Availability
@@ -114,14 +119,14 @@ export const itemModel = mysqlTable('items', {
   imageUrl: varchar('image_url', { length: 500 }),
 
   // Variant & Options (combined)
-  variantName: varchar('variant_name', { length: 100 }), // optional
-  optionName: varchar('option_name', { length: 50 }), // optional
-  optionValue: varchar('option_value', { length: 50 }), // optional
+  variantName: varchar('variant_name', { length: 100 }),
+  optionName: varchar('option_name', { length: 50 }),
+  optionValue: varchar('option_value', { length: 50 }),
   variantSku: varchar('variant_sku', { length: 100 }),
   variantInStock: int('variant_in_stock'),
 
   // Composite Components (JSON or CSV)
-  components: text('components'), // store childItemId + quantity + cost as JSON
+  components: text('components'),
 
   // Timestamps
   createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
@@ -195,6 +200,42 @@ export const supplierModel = mysqlTable('suppliers', {
     .onUpdateNow(),
 })
 
+// // Purchase Orders
+// export const purchaseOrderModel = mysqlTable('purchase_orders', {
+//   purchaseOrderId: int('purchase_order_id').primaryKey().autoincrement(),
+
+//   orderNumber: varchar('order_number', { length: 50 }).notNull(),
+//   orderedBy: varchar('ordered_by', { length: 100 }).notNull(),
+
+//   supplierId: int('supplier_id')
+//     .notNull()
+//     .references(() => supplierModel.supplierId, {
+//       onDelete: 'restrict',
+//       onUpdate: 'cascade',
+//     }),
+
+//   orderDate: varchar('order_date', { length: 20 }).notNull(),
+//   expectedDate: varchar('expected_date', { length: 20 }),
+
+//   destinationStore: varchar('destination_store', { length: 255 }),
+
+//   status: mysqlEnum('status', [
+//     'Draft',
+//     'Pending',
+//     'Partially received',
+//     'Closed',
+//   ]).default('Draft'),
+
+//   received: varchar('received', { length: 50 }).default('0 of 0'),
+
+//   notes: text('notes'),
+
+//   createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
+//   updatedAt: timestamp('updated_at')
+//     .default(sql`CURRENT_TIMESTAMP`)
+//     .onUpdateNow(),
+// })
+
 // Purchase Orders
 export const purchaseOrderModel = mysqlTable('purchase_orders', {
   purchaseOrderId: int('purchase_order_id').primaryKey().autoincrement(),
@@ -212,7 +253,12 @@ export const purchaseOrderModel = mysqlTable('purchase_orders', {
   orderDate: varchar('order_date', { length: 20 }).notNull(),
   expectedDate: varchar('expected_date', { length: 20 }),
 
-  destinationStore: varchar('destination_store', { length: 255 }),
+  // Changed destinationStore to integer referencing storeId
+  destinationStoreId: int('destination_store_id')
+    .references(() => storeModel.storeId, {
+      onDelete: 'restrict',
+      onUpdate: 'cascade',
+    }),
 
   status: mysqlEnum('status', [
     'Draft',
@@ -230,6 +276,7 @@ export const purchaseOrderModel = mysqlTable('purchase_orders', {
     .default(sql`CURRENT_TIMESTAMP`)
     .onUpdateNow(),
 })
+
 
 //purchase_order_items
 export const purchaseOrderItemModel = mysqlTable('purchase_order_items', {
@@ -275,6 +322,30 @@ export const purchaseOrderAdditionalCostModel = mysqlTable(
     amount: decimal('amount', { precision: 10, scale: 2 }).notNull(),
   }
 )
+
+//store model
+export const storeModel = mysqlTable('stores', {
+  storeId: int('store_id').primaryKey().autoincrement(),
+
+  name: varchar('name', { length: 150 }).notNull(),
+  address: text('address').notNull(),
+  city: varchar('city', { length: 100 }).notNull(),
+  region: varchar('region', { length: 100 }).notNull(),
+  postalCode: varchar('postal_code', { length: 20 }).notNull(),
+  country: varchar('country', { length: 100 }).notNull(),
+  phone: varchar('phone', { length: 20 }).notNull(),
+  description: text('description'),
+
+  numberOfPOS: int('number_of_pos').default(1).notNull(),
+
+  createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: timestamp('updated_at')
+    .default(sql`CURRENT_TIMESTAMP`)
+    .onUpdateNow(),
+})
+
+
+
 
 // ========================
 // Relations
@@ -337,6 +408,15 @@ export const purchaseOrderItemRelations = relations(
   })
 )
 
+// Relation from Item → Category
+export const itemCategoryRelations = relations(itemModel, ({ one }) => ({
+  category: one(categoryModel, {
+    fields: [itemModel.categoryId],  // column in itemModel
+    references: [categoryModel.categoryId], // referenced column in categoryModel
+  }),
+}));
+
+
 //users types
 export type User = typeof userModel.$inferSelect
 export type NewUser = typeof userModel.$inferInsert
@@ -379,3 +459,8 @@ export type PurchaseOrderAdditionalCost =
 
 export type NewPurchaseOrderAdditionalCost =
   typeof purchaseOrderAdditionalCostModel.$inferInsert
+
+
+  //stores types
+  export type NewStore = typeof storeModel.$inferInsert
+export type Store = typeof storeModel.$inferSelect
