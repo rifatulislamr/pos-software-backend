@@ -89,20 +89,6 @@ export const getAllPurchaseOrders = async () => {
   return orders
 }
 
-// ---------- Update ----------
-// export const updatePurchaseOrder = async (
-//   purchaseOrderId: number,
-//   data: Partial<NewPurchaseOrder>
-// ) => {
-//   await getPurchaseOrderById(purchaseOrderId)
-
-//   const [updated] = await db
-//     .update(purchaseOrderModel)
-//     .set(data)
-//     .where(eq(purchaseOrderModel.purchaseOrderId, purchaseOrderId))
-
-//   return updated
-// }
 
 // ---------- Update Purchase Order ----------
 export const updatePurchaseOrder = async (
