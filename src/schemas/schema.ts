@@ -79,7 +79,6 @@ export const categoryModel = mysqlTable('categories', {
     .onUpdateNow(),
 })
 
-
 //items model
 export const itemModel = mysqlTable('items', {
   itemId: int('item_id').primaryKey().autoincrement(),
@@ -200,42 +199,6 @@ export const supplierModel = mysqlTable('suppliers', {
     .onUpdateNow(),
 })
 
-// // Purchase Orders
-// export const purchaseOrderModel = mysqlTable('purchase_orders', {
-//   purchaseOrderId: int('purchase_order_id').primaryKey().autoincrement(),
-
-//   orderNumber: varchar('order_number', { length: 50 }).notNull(),
-//   orderedBy: varchar('ordered_by', { length: 100 }).notNull(),
-
-//   supplierId: int('supplier_id')
-//     .notNull()
-//     .references(() => supplierModel.supplierId, {
-//       onDelete: 'restrict',
-//       onUpdate: 'cascade',
-//     }),
-
-//   orderDate: varchar('order_date', { length: 20 }).notNull(),
-//   expectedDate: varchar('expected_date', { length: 20 }),
-
-//   destinationStore: varchar('destination_store', { length: 255 }),
-
-//   status: mysqlEnum('status', [
-//     'Draft',
-//     'Pending',
-//     'Partially received',
-//     'Closed',
-//   ]).default('Draft'),
-
-//   received: varchar('received', { length: 50 }).default('0 of 0'),
-
-//   notes: text('notes'),
-
-//   createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
-//   updatedAt: timestamp('updated_at')
-//     .default(sql`CURRENT_TIMESTAMP`)
-//     .onUpdateNow(),
-// })
-
 // Purchase Orders
 export const purchaseOrderModel = mysqlTable('purchase_orders', {
   purchaseOrderId: int('purchase_order_id').primaryKey().autoincrement(),
@@ -254,11 +217,13 @@ export const purchaseOrderModel = mysqlTable('purchase_orders', {
   expectedDate: varchar('expected_date', { length: 20 }),
 
   // Changed destinationStore to integer referencing storeId
-  destinationStoreId: int('destination_store_id')
-    .references(() => storeModel.storeId, {
+  destinationStoreId: int('destination_store_id').references(
+    () => storeModel.storeId,
+    {
       onDelete: 'restrict',
       onUpdate: 'cascade',
-    }),
+    }
+  ),
 
   status: mysqlEnum('status', [
     'Draft',
@@ -276,7 +241,6 @@ export const purchaseOrderModel = mysqlTable('purchase_orders', {
     .default(sql`CURRENT_TIMESTAMP`)
     .onUpdateNow(),
 })
-
 
 //purchase_order_items
 export const purchaseOrderItemModel = mysqlTable('purchase_order_items', {
@@ -346,6 +310,42 @@ export const storeModel = mysqlTable('stores', {
 
 
 
+export const storeTransactionModel = mysqlTable('store_transactions', {
+  transactionId: int('transaction_id')
+    .primaryKey()
+    .autoincrement(),
+
+  itemId: int('item_id')
+    .notNull()
+    .references(() => itemModel.itemId),
+
+  transactionType: mysqlEnum('transaction_type', [
+    'purchase',
+    'sale',
+    'sales_return',
+    'purchase_return',
+    'adjustment',
+    'wastage',
+  ]).notNull(),
+
+  // + increase stock, - decrease stock
+  quantity: int('quantity').notNull(),
+
+  purchaseCost: decimal('purchase_cost', { precision: 10, scale: 2 }),
+
+  // audit fields
+  createdBy: int('created_by').notNull(),
+
+  createdAt: timestamp('created_at')
+    .defaultNow()
+    .notNull(),
+
+  updatedBy: int('updated_by'),
+
+  updatedAt: timestamp('updated_at')
+    .onUpdateNow(),
+})
+
 
 // ========================
 // Relations
@@ -411,11 +411,10 @@ export const purchaseOrderItemRelations = relations(
 // Relation from Item → Category
 export const itemCategoryRelations = relations(itemModel, ({ one }) => ({
   category: one(categoryModel, {
-    fields: [itemModel.categoryId],  // column in itemModel
+    fields: [itemModel.categoryId], // column in itemModel
     references: [categoryModel.categoryId], // referenced column in categoryModel
   }),
-}));
-
+}))
 
 //users types
 export type User = typeof userModel.$inferSelect
@@ -460,7 +459,11 @@ export type PurchaseOrderAdditionalCost =
 export type NewPurchaseOrderAdditionalCost =
   typeof purchaseOrderAdditionalCostModel.$inferInsert
 
-
-  //stores types
-  export type NewStore = typeof storeModel.$inferInsert
+//stores types
+export type NewStore = typeof storeModel.$inferInsert
 export type Store = typeof storeModel.$inferSelect
+
+// store transaction types
+export type StoreTransaction = typeof storeTransactionModel.$inferSelect
+export type NewStoreTransaction = typeof storeTransactionModel.$inferInsert
+

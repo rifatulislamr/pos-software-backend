@@ -16,6 +16,54 @@ import {
 import { z } from 'zod'
 
 
+// // ---------- Schemas ----------
+// const purchaseOrderSchema = createInsertSchema(purchaseOrderModel).omit({
+//   purchaseOrderId: true,
+//   createdAt: true,
+//   updatedAt: true,
+// })
+
+// const purchaseOrderItemSchema = createInsertSchema(
+//   purchaseOrderItemModel
+// ).omit({
+//   poItemId: true,
+//   purchaseOrderId: true,
+// })
+
+// const additionalCostSchema = createInsertSchema(
+//   purchaseOrderAdditionalCostModel
+// ).omit({
+//   costId: true,
+//   purchaseOrderId: true,
+// })
+
+// const createPOSchema = z.object({
+//   order: purchaseOrderSchema,
+//   items: z.array(purchaseOrderItemSchema).min(1),
+//   additionalCosts: z.array(additionalCostSchema).optional(),
+// })
+
+// // ---------- Controllers ----------
+// export const createPurchaseOrderController = async (
+//   req: Request,
+//   res: Response,
+//   next: NextFunction
+// ) => {
+//   try {
+//     requirePermission(req, 'create_purchase_order')
+
+//     const data = createPOSchema.parse(req.body)
+//     const po = await createPurchaseOrder(data)
+
+//     res.status(201).json({
+//       status: 'success',
+//       data: po,
+//     })
+//   } catch (error) {
+//     next(error)
+//   }
+// }
+
 // ---------- Schemas ----------
 const purchaseOrderSchema = createInsertSchema(purchaseOrderModel).omit({
   purchaseOrderId: true,
@@ -37,6 +85,7 @@ const additionalCostSchema = createInsertSchema(
   purchaseOrderId: true,
 })
 
+// Add createdBy as required in the controller, not in the schema
 const createPOSchema = z.object({
   order: purchaseOrderSchema,
   items: z.array(purchaseOrderItemSchema).min(1),
@@ -52,8 +101,20 @@ export const createPurchaseOrderController = async (
   try {
     requirePermission(req, 'create_purchase_order')
 
+    // Parse and validate request body
     const data = createPOSchema.parse(req.body)
-    const po = await createPurchaseOrder(data)
+
+    // Extract logged-in user ID (adjust based on your auth system)
+    const userId = req.user?.userId // or however your middleware attaches user info
+    if (!userId) {
+      throw new Error('Unauthorized: user not found')
+    }
+
+    // Call service with createdBy
+    const po = await createPurchaseOrder({
+      ...data,
+      createdBy: userId,
+    })
 
     res.status(201).json({
       status: 'success',
@@ -63,6 +124,7 @@ export const createPurchaseOrderController = async (
     next(error)
   }
 }
+
 
 export const getAllPurchaseOrdersController = async (
   req: Request,
@@ -93,22 +155,7 @@ export const getPurchaseOrderController = async (
   }
 }
 
-// export const updatePurchaseOrderController = async (
-//   req: Request,
-//   res: Response,
-//   next: NextFunction
-// ) => {
-//   try {
-//     requirePermission(req, 'edit_purchase_order')
-//     const id = Number(req.params.id)
-//     const data = purchaseOrderSchema.partial().parse(req.body)
 
-//     const order = await updatePurchaseOrder(id, data)
-//     res.status(200).json(order)
-//   } catch (error) {
-//     next(error)
-//   }
-// }
 
 const updatePOSchema = z.object({
   order: purchaseOrderSchema.partial(),

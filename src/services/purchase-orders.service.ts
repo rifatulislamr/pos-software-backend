@@ -8,19 +8,54 @@ import {
   NewPurchaseOrder,
   NewPurchaseOrderItem,
   NewPurchaseOrderAdditionalCost,
+  storeTransactionModel,
 } from '../schemas'
 
 // ---------- Create ----------
 
+// export const createPurchaseOrder = async (data: {
+//   order: NewPurchaseOrder
+//   items: Omit<NewPurchaseOrderItem, 'purchaseOrderId'>[]
+//   additionalCosts?: Omit<
+//     NewPurchaseOrderAdditionalCost,
+//     'purchaseOrderId'
+//   >[]
+// }) => {
+//   return await db.transaction(async (tx) => {
+//     const [po] = await tx
+//       .insert(purchaseOrderModel)
+//       .values(data.order)
+//       .$returningId()
+
+//     const purchaseOrderId = po.purchaseOrderId
+
+//     await tx.insert(purchaseOrderItemModel).values(
+//       data.items.map((item) => ({
+//         ...item,
+//         purchaseOrderId,
+//       }))
+//     )
+
+//     if (data.additionalCosts?.length) {
+//       await tx.insert(purchaseOrderAdditionalCostModel).values(
+//         data.additionalCosts.map((cost) => ({
+//           ...cost,
+//           purchaseOrderId,
+//         }))
+//       )
+//     }
+
+//     return { purchaseOrderId }
+//   })
+// }
 export const createPurchaseOrder = async (data: {
   order: NewPurchaseOrder
   items: Omit<NewPurchaseOrderItem, 'purchaseOrderId'>[]
-  additionalCosts?: Omit<
-    NewPurchaseOrderAdditionalCost,
-    'purchaseOrderId'
-  >[]
+  additionalCosts?: Omit<NewPurchaseOrderAdditionalCost, 'purchaseOrderId'>[]
+  createdBy: number
 }) => {
   return await db.transaction(async (tx) => {
+    // 1️⃣ Insert purchase order
     const [po] = await tx
       .insert(purchaseOrderModel)
       .values(data.order)
@@ -28,6 +63,7 @@ export const createPurchaseOrder = async (data: {
 
     const purchaseOrderId = po.purchaseOrderId
 
+    // 2️⃣ Insert purchase order items
     await tx.insert(purchaseOrderItemModel).values(
       data.items.map((item) => ({
         ...item,
@@ -35,6 +71,7 @@ export const createPurchaseOrder = async (data: {
       }))
     )
 
+    // 3️⃣ Insert additional costs (optional)
     if (data.additionalCosts?.length) {
       await tx.insert(purchaseOrderAdditionalCostModel).values(
         data.additionalCosts.map((cost) => ({
@@ -44,10 +81,22 @@ export const createPurchaseOrder = async (data: {
       )
     }
 
+    // 4️⃣ Insert into store transactions
+    const transactions = data.items.map((item) => ({
+      itemId: item.itemId,
+      quantity: item.quantity,
+      purchaseCost: item.purchaseCost,
+      transactionType: 'purchase' as const,
+      purchaseOrderId,
+      createdBy: data.createdBy,
+      createdAt: new Date(),
+    }))
+
+    await tx.insert(storeTransactionModel).values(transactions)
+
     return { purchaseOrderId }
   })
 }
-
 
 // ---------- Get by ID ----------
 export const getPurchaseOrderById = async (purchaseOrderId: number) => {
@@ -69,7 +118,9 @@ export const getPurchaseOrderById = async (purchaseOrderId: number) => {
   const additionalCosts = await db
     .select()
     .from(purchaseOrderAdditionalCostModel)
-    .where(eq(purchaseOrderAdditionalCostModel.purchaseOrderId, purchaseOrderId))
+    .where(
+      eq(purchaseOrderAdditionalCostModel.purchaseOrderId, purchaseOrderId)
+    )
 
   return {
     ...order[0],
@@ -88,7 +139,6 @@ export const getAllPurchaseOrders = async () => {
 
   return orders
 }
-
 
 // ---------- Update Purchase Order ----------
 export const updatePurchaseOrder = async (
@@ -128,7 +178,9 @@ export const updatePurchaseOrder = async (
     if (data.additionalCosts) {
       await tx
         .delete(purchaseOrderAdditionalCostModel)
-        .where(eq(purchaseOrderAdditionalCostModel.purchaseOrderId, purchaseOrderId))
+        .where(
+          eq(purchaseOrderAdditionalCostModel.purchaseOrderId, purchaseOrderId)
+        )
 
       await tx.insert(purchaseOrderAdditionalCostModel).values(
         data.additionalCosts.map((cost) => ({
@@ -157,7 +209,9 @@ export const updatePurchaseOrder = async (
     const additionalCosts = await tx
       .select()
       .from(purchaseOrderAdditionalCostModel)
-      .where(eq(purchaseOrderAdditionalCostModel.purchaseOrderId, purchaseOrderId))
+      .where(
+        eq(purchaseOrderAdditionalCostModel.purchaseOrderId, purchaseOrderId)
+      )
 
     return {
       ...order[0],
