@@ -79,7 +79,6 @@ export const categoryModel = mysqlTable('categories', {
     .onUpdateNow(),
 })
 
-
 //items model
 export const itemModel = mysqlTable('items', {
   itemId: int('item_id').primaryKey().autoincrement(),
@@ -200,42 +199,6 @@ export const supplierModel = mysqlTable('suppliers', {
     .onUpdateNow(),
 })
 
-// // Purchase Orders
-// export const purchaseOrderModel = mysqlTable('purchase_orders', {
-//   purchaseOrderId: int('purchase_order_id').primaryKey().autoincrement(),
-
-//   orderNumber: varchar('order_number', { length: 50 }).notNull(),
-//   orderedBy: varchar('ordered_by', { length: 100 }).notNull(),
-
-//   supplierId: int('supplier_id')
-//     .notNull()
-//     .references(() => supplierModel.supplierId, {
-//       onDelete: 'restrict',
-//       onUpdate: 'cascade',
-//     }),
-
-//   orderDate: varchar('order_date', { length: 20 }).notNull(),
-//   expectedDate: varchar('expected_date', { length: 20 }),
-
-//   destinationStore: varchar('destination_store', { length: 255 }),
-
-//   status: mysqlEnum('status', [
-//     'Draft',
-//     'Pending',
-//     'Partially received',
-//     'Closed',
-//   ]).default('Draft'),
-
-//   received: varchar('received', { length: 50 }).default('0 of 0'),
-
-//   notes: text('notes'),
-
-//   createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
-//   updatedAt: timestamp('updated_at')
-//     .default(sql`CURRENT_TIMESTAMP`)
-//     .onUpdateNow(),
-// })
-
 // Purchase Orders
 export const purchaseOrderModel = mysqlTable('purchase_orders', {
   purchaseOrderId: int('purchase_order_id').primaryKey().autoincrement(),
@@ -254,11 +217,13 @@ export const purchaseOrderModel = mysqlTable('purchase_orders', {
   expectedDate: varchar('expected_date', { length: 20 }),
 
   // Changed destinationStore to integer referencing storeId
-  destinationStoreId: int('destination_store_id')
-    .references(() => storeModel.storeId, {
+  destinationStoreId: int('destination_store_id').references(
+    () => storeModel.storeId,
+    {
       onDelete: 'restrict',
       onUpdate: 'cascade',
-    }),
+    }
+  ),
 
   status: mysqlEnum('status', [
     'Draft',
@@ -276,7 +241,6 @@ export const purchaseOrderModel = mysqlTable('purchase_orders', {
     .default(sql`CURRENT_TIMESTAMP`)
     .onUpdateNow(),
 })
-
 
 //purchase_order_items
 export const purchaseOrderItemModel = mysqlTable('purchase_order_items', {
@@ -344,8 +308,94 @@ export const storeModel = mysqlTable('stores', {
     .onUpdateNow(),
 })
 
+export const storeTransactionModel = mysqlTable('store_transactions', {
+  transactionId: int('transaction_id').primaryKey().autoincrement(),
 
+  itemId: int('item_id')
+    .notNull()
+    .references(() => itemModel.itemId),
 
+  transactionType: mysqlEnum('transaction_type', [
+    'purchase',
+    'sale',
+    'sales_return',
+    'purchase_return',
+    'adjustment',
+    'wastage',
+  ]).notNull(),
+
+  // + increase stock, - decrease stock
+  quantity: int('quantity').notNull(),
+
+  purchaseCost: decimal('purchase_cost', { precision: 10, scale: 2 }),
+
+  // audit fields
+  createdBy: int('created_by').notNull(),
+
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+
+  updatedBy: int('updated_by'),
+
+  updatedAt: timestamp('updated_at').onUpdateNow(),
+})
+
+// sales model (master)
+export const salesMasterModel = mysqlTable('sales_master', {
+  saleMasterId: int('sale_master_id').autoincrement().primaryKey(),
+
+  paymentType: mysqlEnum('payment_type', ['cash', 'credit']).notNull(),
+
+  customerId: int('customer_id')
+    .notNull()
+    .references(() => customerModel.customerId, { onDelete: 'cascade' }),
+
+  saleDate: date('sale_date').notNull(),
+
+  totalQuantity: int('total_quantity').notNull(),
+  totalAmount: double('total_amount').notNull(),
+
+  discountAmount: double('discount_amount').notNull().default(0),
+
+  notes: text('notes'),
+
+  createdBy: int('created_by').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+
+  updatedBy: int('updated_by'),
+  updatedAt: timestamp('updated_at').onUpdateNow(),
+})
+
+// Sale Items (Details)
+export const salesDetailsModel = mysqlTable('sales_details', {
+  saleDetailsId: int('sale_details_id').autoincrement().primaryKey(),
+  saleMasterId: int('sale_master_id')
+    .notNull()
+    .references(() => salesMasterModel.saleMasterId, { onDelete: 'cascade' }),
+  itemId: int('item_id')
+    .notNull()
+    .references(() => itemModel.itemId, { onDelete: 'cascade' }),
+  avgPrice: double('avg_price'),
+  quantity: int('quantity').notNull(),
+  amount: double('amount').notNull(),
+  unitPrice: double('unit_price').notNull(),
+  createdBy: int('created_by').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedBy: int('updated_by'),
+  updatedAt: timestamp('updated_at').onUpdateNow(),
+})
+
+// Sales Return model
+export const salesReturnModel = mysqlTable('sales_return', {
+  saleReturnId: int('sale_return_id').autoincrement().primaryKey(),
+  saleDetailsId: int('sale_details_id')
+    .notNull()
+    .references(() => salesDetailsModel.saleDetailsId, { onDelete: 'cascade' }),
+  returnQuantity: int('return_quantity').notNull(),
+  createdBy: int('created_by').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedBy: int('updated_by'),
+  updatedAt: timestamp('updated_at').onUpdateNow(),
+})
 
 // ========================
 // Relations
@@ -388,34 +438,76 @@ export const userRolesRelations = relations(userRolesModel, ({ one }) => ({
 
 export const purchaseOrderRelations = relations(
   purchaseOrderModel,
-  ({ one, many }) => ({
+  ({ one }) => ({
     supplier: one(supplierModel, {
       fields: [purchaseOrderModel.supplierId],
       references: [supplierModel.supplierId],
     }),
-    items: many(purchaseOrderItemModel),
-    additionalCosts: many(purchaseOrderAdditionalCostModel),
+    destinationStore: one(storeModel, {
+      fields: [purchaseOrderModel.destinationStoreId],
+      references: [storeModel.storeId],
+    }),
   })
 )
 
 export const purchaseOrderItemRelations = relations(
   purchaseOrderItemModel,
-  ({ one }) => ({
-    item: one(itemModel, {
-      fields: [purchaseOrderItemModel.itemId],
-      references: [itemModel.itemId],
-    }),
+  ({ many }) => ({
+    item: many(itemModel),
+    purchaseOrder: many(purchaseOrderModel),
+  })
+)
+
+export const purchaseOrderAdditionalCostRelations = relations(
+  purchaseOrderAdditionalCostModel,
+  ({ many }) => ({
+    purchaseOrder: many(purchaseOrderModel),
   })
 )
 
 // Relation from Item → Category
 export const itemCategoryRelations = relations(itemModel, ({ one }) => ({
   category: one(categoryModel, {
-    fields: [itemModel.categoryId],  // column in itemModel
+    fields: [itemModel.categoryId], // column in itemModel
     references: [categoryModel.categoryId], // referenced column in categoryModel
   }),
-}));
+}))
 
+//sale items relations
+export const salesMasterRelations = relations(
+  salesMasterModel,
+  ({ one, many }) => ({
+    customer: one(customerModel, {
+      fields: [salesMasterModel.customerId],
+      references: [customerModel.customerId],
+    }),
+    items: many(salesDetailsModel), // a sale can have many items
+  })
+)
+
+// sale items relations
+export const salesDetailsRelations = relations(
+  salesDetailsModel,
+  ({ one, many }) => ({
+    saleMaster: one(salesMasterModel, {
+      fields: [salesDetailsModel.saleMasterId],
+      references: [salesMasterModel.saleMasterId],
+    }),
+    item: one(itemModel, {
+      fields: [salesDetailsModel.itemId],
+      references: [itemModel.itemId],
+    }),
+    returns: many(salesReturnModel), // a sale item can have multiple returns
+  })
+)
+
+// sales return relations
+export const salesReturnRelations = relations(salesReturnModel, ({ one }) => ({
+  saleDetail: one(salesDetailsModel, {
+    fields: [salesReturnModel.saleDetailsId],
+    references: [salesDetailsModel.saleDetailsId],
+  }),
+}))
 
 //users types
 export type User = typeof userModel.$inferSelect
@@ -460,7 +552,22 @@ export type PurchaseOrderAdditionalCost =
 export type NewPurchaseOrderAdditionalCost =
   typeof purchaseOrderAdditionalCostModel.$inferInsert
 
-
-  //stores types
-  export type NewStore = typeof storeModel.$inferInsert
+//stores types
+export type NewStore = typeof storeModel.$inferInsert
 export type Store = typeof storeModel.$inferSelect
+
+// store transaction types
+export type StoreTransaction = typeof storeTransactionModel.$inferSelect
+export type NewStoreTransaction = typeof storeTransactionModel.$inferInsert
+
+// sales types
+export type SaleMaster = typeof salesMasterModel.$inferSelect
+export type NewSaleMaster = typeof salesMasterModel.$inferInsert
+
+// sales details types
+export type SaleDetails = typeof salesDetailsModel.$inferSelect
+export type NewSaleDetails = typeof salesDetailsModel.$inferInsert
+
+//sales return types
+export type SaleReturn = typeof salesReturnModel.$inferSelect
+export type NewSaleReturn = typeof salesReturnModel.$inferInsert
