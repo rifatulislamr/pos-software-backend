@@ -397,6 +397,31 @@ export const salesReturnModel = mysqlTable('sales_return', {
   updatedAt: timestamp('updated_at').onUpdateNow(),
 })
 
+//sales transaction
+export const salesTransactionModel = mysqlTable('sales_transaction', {
+  transactionId: int('transaction_id').autoincrement().primaryKey(),
+  saleMasterId: int('sale_master_id').references(
+    () => salesMasterModel.saleMasterId,
+    {
+      onDelete: 'set null',
+    }
+  ),
+  customerId: int('customer_id').references(() => customerModel.customerId, {
+    onDelete: 'set null',
+  }),
+  amount: varchar('amount', { length: 100 }).notNull(),
+  transactionDate: date('transaction_date').notNull(),
+  referenceType: mysqlEnum('reference_type', [
+    'sales',
+    'opening balance',
+    'transaction',
+  ]).notNull(),
+  createdBy: int('created_by').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedBy: int('updated_by'),
+  updatedAt: timestamp('updated_at').onUpdateNow(),
+})
+
 // ========================
 // Relations
 // ========================
@@ -497,7 +522,7 @@ export const salesDetailsRelations = relations(
       fields: [salesDetailsModel.itemId],
       references: [itemModel.itemId],
     }),
-    returns: many(salesReturnModel), // a sale item can have multiple returns
+    salesReturns: many(salesReturnModel),
   })
 )
 
@@ -508,6 +533,15 @@ export const salesReturnRelations = relations(salesReturnModel, ({ one }) => ({
     references: [salesDetailsModel.saleDetailsId],
   }),
 }))
+
+// sales transaction relations
+export const salesTransactionRelations = relations(
+  salesTransactionModel,
+  ({ many }) => ({
+    saleMasters: many(salesMasterModel),
+    customers: many(customerModel),
+  })
+)
 
 //users types
 export type User = typeof userModel.$inferSelect
@@ -571,3 +605,7 @@ export type NewSaleDetails = typeof salesDetailsModel.$inferInsert
 //sales return types
 export type SaleReturn = typeof salesReturnModel.$inferSelect
 export type NewSaleReturn = typeof salesReturnModel.$inferInsert
+
+// sales transaction types
+export type SalesTransaction = typeof salesTransactionModel.$inferSelect  
+export type NewSalesTransaction = typeof salesTransactionModel.$inferInsert

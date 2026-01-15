@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { db } from '../config/database'
 import { BadRequestError } from './utils/errors.utils'
 import {
@@ -9,7 +9,9 @@ import {
   NewPurchaseOrder,
   NewPurchaseOrderItem,
   NewPurchaseOrderAdditionalCost,
+  itemModel,
 } from '../schemas'
+
 
 /* ----------------------------------------------------
    Utility: Merge items by itemId (KEY REQUIREMENT)
@@ -29,19 +31,18 @@ const normalizeItems = (
 
     const totalQty = existing.quantity + item.quantity
 
-   const avgCost =
-  existing.purchaseCost && item.purchaseCost
-    ? (
-        (existing.quantity * Number(existing.purchaseCost) +
-         item.quantity * Number(item.purchaseCost)) /
-        totalQty
-      ).toFixed(2) // converts to string with 2 decimals
-    : existing.purchaseCost ?? item.purchaseCost?.toString()
+    const avgCost =
+      existing.purchaseCost && item.purchaseCost
+        ? (
+            (existing.quantity * Number(existing.purchaseCost) +
+              item.quantity * Number(item.purchaseCost)) /
+            totalQty
+          ).toFixed(2) // converts to string with 2 decimals
+        : (existing.purchaseCost ?? item.purchaseCost?.toString())
     map.set(item.itemId, {
       ...existing,
       quantity: totalQty,
-     purchaseCost: item.purchaseCost?.toString() ?? null
-
+      purchaseCost: item.purchaseCost?.toString() ?? null,
     })
   }
 
@@ -100,6 +101,16 @@ export const createPurchaseOrder = async (data: {
       }))
     )
 
+    // // item model increase stock quantity
+    // for (const item of items) {
+    //   await tx
+    //     .update(itemModel)
+    //     .set({
+    //       inStock: sql`${itemModel.inStock} + ${item.quantity}`,
+    //     })
+    //     .where(eq(itemModel.itemId, item.itemId))
+    // }
+
     return { purchaseOrderId }
   })
 }
@@ -126,7 +137,9 @@ export const getPurchaseOrderById = async (purchaseOrderId: number) => {
   const additionalCosts = await db
     .select()
     .from(purchaseOrderAdditionalCostModel)
-    .where(eq(purchaseOrderAdditionalCostModel.purchaseOrderId, purchaseOrderId))
+    .where(
+      eq(purchaseOrderAdditionalCostModel.purchaseOrderId, purchaseOrderId)
+    )
 
   return {
     ...order[0],
@@ -218,8 +231,6 @@ export const deletePurchaseOrder = async (purchaseOrderId: number) => {
 
   return { message: 'Purchase order deleted successfully' }
 }
-
-
 
 // import { eq } from 'drizzle-orm'
 // import { db } from '../config/database'
