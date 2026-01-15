@@ -9,10 +9,11 @@ import {
 } from '../schemas'
 import {
   createPurchaseOrder,
-  getAllPurchaseOrders,
+  
   getPurchaseOrderById,
   updatePurchaseOrder,
   deletePurchaseOrder,
+  getAllPurchaseOrdersWithDetails,
 } from '../services/purchase-orders.service'
 
 // ---------- Schemas ----------
@@ -79,7 +80,7 @@ export const getAllPurchaseOrdersController = async (
 ) => {
   try {
     requirePermission(req, 'view_purchase_order')
-    const orders = await getAllPurchaseOrders()
+    const orders = await getAllPurchaseOrdersWithDetails()
     res.status(200).json(orders)
   } catch (error) {
     next(error)

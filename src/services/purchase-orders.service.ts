@@ -1,4 +1,4 @@
-import { eq, sql } from 'drizzle-orm'
+import { eq, inArray, sql } from 'drizzle-orm'
 import { db } from '../config/database'
 import { BadRequestError } from './utils/errors.utils'
 import {
@@ -10,6 +10,7 @@ import {
   NewPurchaseOrderItem,
   NewPurchaseOrderAdditionalCost,
   itemModel,
+  supplierModel,
 } from '../schemas'
 
 
@@ -151,15 +152,80 @@ export const getPurchaseOrderById = async (purchaseOrderId: number) => {
 /* ----------------------------------------------------
    Get All Purchase Orders
 ----------------------------------------------------- */
-export const getAllPurchaseOrders = async () => {
-  const orders = await db.select().from(purchaseOrderModel)
 
-  if (!orders.length) {
-    throw BadRequestError('No purchase orders found')
-  }
 
-  return orders
+export const getAllPurchaseOrdersWithDetails = async () => {
+  // 1. Get all purchase orders (master)
+    const orders = await db
+    .select({
+      purchaseOrderId: purchaseOrderModel.purchaseOrderId,
+      orderNumber: purchaseOrderModel.orderNumber,
+      orderedBy: purchaseOrderModel.orderedBy,
+      supplierId: purchaseOrderModel.supplierId,
+      orderDate: purchaseOrderModel.orderDate,
+      expectedDate: purchaseOrderModel.expectedDate,
+      destinationStoreId: purchaseOrderModel.destinationStoreId,
+      status: purchaseOrderModel.status,
+      received: purchaseOrderModel.received,
+      notes: purchaseOrderModel.notes,
+      createdAt: purchaseOrderModel.createdAt,
+      updatedAt: purchaseOrderModel.updatedAt,
+      supplierName: supplierModel.name, // <-- LEFT JOIN field
+    })
+    .from(purchaseOrderModel)
+    .leftJoin(
+      supplierModel,
+      eq(purchaseOrderModel.supplierId, supplierModel.supplierId)
+    )
+  if (!orders.length) return []
+
+  const orderIds = orders.map(o => o.purchaseOrderId)
+
+  // 2. Get all items for these orders
+  const items = await db
+    .select()
+    .from(purchaseOrderItemModel)
+    .where(inArray(purchaseOrderItemModel.purchaseOrderId, orderIds))
+
+  // 3. Get all additional costs for these orders
+  const additionalCosts = await db
+    .select()
+    .from(purchaseOrderAdditionalCostModel)
+    .where(
+      inArray(
+        purchaseOrderAdditionalCostModel.purchaseOrderId,
+        orderIds
+      )
+    )
+
+  // 4. Group items by purchaseOrderId
+  const itemsByOrderId = items.reduce<Record<number, any[]>>(
+    (acc, item) => {
+      acc[item.purchaseOrderId] ??= []
+      acc[item.purchaseOrderId].push(item)
+      return acc
+    },
+    {}
+  )
+
+  // 5. Group additional costs by purchaseOrderId
+  const costsByOrderId = additionalCosts.reduce<Record<number, any[]>>(
+    (acc, cost) => {
+      acc[cost.purchaseOrderId] ??= []
+      acc[cost.purchaseOrderId].push(cost)
+      return acc
+    },
+    {}
+  )
+
+  // 6. Merge everything
+  return orders.map(order => ({
+    ...order,
+    items: itemsByOrderId[order.purchaseOrderId] ?? [],
+    additionalCosts: costsByOrderId[order.purchaseOrderId] ?? [],
+  }))
 }
+
 
 /* ----------------------------------------------------
    Update Purchase Order
