@@ -3,15 +3,60 @@ import { db } from '../config/database'
 import { BadRequestError } from './utils/errors.utils'
 import { categoryModel, itemModel, NewItem } from '../schemas'
 
+
+const generateBarcode = () => {
+  // 12-digit numeric barcode
+  return (
+    Date.now().toString().slice(-8) +
+    Math.floor(1000 + Math.random() * 9000).toString()
+  )
+}
+
+
 // Create a new item
+// export const createItem = async (itemData: NewItem) => {
+//   try {
+//     const [newItem] = await db.insert(itemModel).values(itemData).$returningId()
+//     return newItem
+//   } catch (error) {
+//     throw error
+//   }
+// }
 export const createItem = async (itemData: NewItem) => {
   try {
-    const [newItem] = await db.insert(itemModel).values(itemData).$returningId()
+    // Auto-generate barcode if not provided
+    if (!itemData.barcode) {
+      let unique = false
+      let barcode = ''
+
+      while (!unique) {
+        barcode = generateBarcode()
+
+        const existing = await db
+          .select({ itemId: itemModel.itemId })
+          .from(itemModel)
+          .where(eq(itemModel.barcode, barcode))
+          .limit(1)
+
+        if (existing.length === 0) {
+          unique = true
+        }
+      }
+
+      itemData.barcode = barcode
+    }
+
+    const [newItem] = await db
+      .insert(itemModel)
+      .values(itemData)
+      .$returningId()
+
     return newItem
   } catch (error) {
     throw error
   }
 }
+
 
 // Get item by ID
 export const getItemById = async (itemId: number) => {

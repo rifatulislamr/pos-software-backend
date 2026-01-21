@@ -1,7 +1,7 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "../config/database";
 import { BadRequestError } from "./utils/errors.utils";
-import { categoryModel, NewCategory } from "../schemas";
+import { categoryModel, itemModel, NewCategory } from "../schemas";
 
 
 // Create a new category
@@ -34,11 +34,37 @@ export const getCategoryById = async (categoryId: number) => {
 };
 
 // Get all categories
+// export const getAllCategories = async () => {
+//   const categories = await db.select().from(categoryModel);
+
+//   if (!categories.length) {
+//     throw BadRequestError("No categories found");
+//   }
+
+//   return categories;
+// };
+
 export const getAllCategories = async () => {
-  const categories = await db.select().from(categoryModel);
+  const categories = await db
+    .select({
+      categoryId: categoryModel.categoryId,
+      name: categoryModel.name,
+      color: categoryModel.color,
+      totalInStock: sql<number>`COALESCE(SUM(${itemModel.inStock}), 0)`,
+    })
+    .from(categoryModel)
+    .leftJoin(
+      itemModel,
+      eq(categoryModel.categoryId, itemModel.categoryId)
+    )
+    .groupBy(
+      categoryModel.categoryId,
+      categoryModel.name,
+      categoryModel.color
+    );
 
   if (!categories.length) {
-    throw BadRequestError("No categories found");
+    throw BadRequestError('No categories found');
   }
 
   return categories;

@@ -1,5 +1,5 @@
 import { db } from '../config/database'
-import { eq } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
 import {
   salesMasterModel,
   salesDetailsModel,
@@ -7,8 +7,12 @@ import {
   salesTransactionModel,
   NewSaleMaster,
   NewSaleDetails,
+  customerModel,
+  itemModel,
 } from '../schemas'
 
+
+//create sale with its items
 export const createSale = async (data: {
   sale: NewSaleMaster
   items: Omit<NewSaleDetails, 'saleMasterId'>[]
@@ -77,9 +81,145 @@ export const getSaleById = async (id: number) => {
   return { ...sale[0], items }
 }
 
+//get all sales with their details
+
+// export const getAllSales = async () => {
+//   // 1. Fetch all sales master records
+//   const salesMasters = await db
+//     .select()
+//     .from(salesMasterModel)
+
+//   if (!salesMasters.length) {
+//     return []
+//   }
+
+//   // 2. Extract master IDs
+//   const saleMasterIds = salesMasters.map(
+//     (sale) => sale.saleMasterId
+//   )
+
+//   // 3. Fetch all related sale details
+//   const salesDetails = await db
+//     .select()
+//     .from(salesDetailsModel)
+//     .where(
+//       inArray(
+//         salesDetailsModel.saleMasterId,
+//         saleMasterIds
+//       )
+//     )
+
+//   // 4. Attach details to each master
+//   const result = salesMasters.map((sale) => ({
+//     ...sale,
+//     Details: salesDetails.filter(
+//       (detail) =>
+//         detail.saleMasterId === sale.saleMasterId
+//     ),
+//   }))
+
+//   return result
+// }
+
+
+
+
+
 export const getAllSales = async () => {
-  return db.select().from(salesMasterModel)
+  /* -------------------------------------------------
+   * 1. Fetch sales masters with customer name
+   * ------------------------------------------------- */
+  const salesMasters = await db
+    .select({
+      saleMasterId: salesMasterModel.saleMasterId,
+      paymentType: salesMasterModel.paymentType,
+      customerId: salesMasterModel.customerId,
+      saleDate: salesMasterModel.saleDate,
+      totalQuantity: salesMasterModel.totalQuantity,
+      totalAmount: salesMasterModel.totalAmount,
+      discountAmount: salesMasterModel.discountAmount,
+      notes: salesMasterModel.notes,
+      createdBy: salesMasterModel.createdBy,
+      createdAt: salesMasterModel.createdAt,
+      updatedBy: salesMasterModel.updatedBy,
+      updatedAt: salesMasterModel.updatedAt,
+
+      customerName: customerModel.name,
+    })
+    .from(salesMasterModel)
+    .leftJoin(
+      customerModel,
+      eq(salesMasterModel.customerId, customerModel.customerId)
+    )
+
+  if (!salesMasters.length) {
+    return []
+  }
+
+  /* -------------------------------------------------
+   * 2. Collect master IDs
+   * ------------------------------------------------- */
+  const saleMasterIds = salesMasters.map(
+    (sale) => sale.saleMasterId
+  )
+
+  /* -------------------------------------------------
+   * 3. Fetch sale details with item name
+   * ------------------------------------------------- */
+  const salesDetails = await db
+    .select({
+      saleDetailsId: salesDetailsModel.saleDetailsId,
+      saleMasterId: salesDetailsModel.saleMasterId,
+      itemId: salesDetailsModel.itemId,
+      itemName: itemModel.name,
+      avgPrice: salesDetailsModel.avgPrice,
+      quantity: salesDetailsModel.quantity,
+      amount: salesDetailsModel.amount,
+      unitPrice: salesDetailsModel.unitPrice,
+      createdBy: salesDetailsModel.createdBy,
+      createdAt: salesDetailsModel.createdAt,
+      updatedBy: salesDetailsModel.updatedBy,
+      updatedAt: salesDetailsModel.updatedAt,
+    })
+    .from(salesDetailsModel)
+    .leftJoin(
+      itemModel,
+      eq(salesDetailsModel.itemId, itemModel.itemId)
+    )
+    .where(
+      inArray(
+        salesDetailsModel.saleMasterId,
+        saleMasterIds
+      )
+    )
+
+  /* -------------------------------------------------
+   * 4. Group details by master ID (O(n))
+   * ------------------------------------------------- */
+  const detailsMap = new Map<number, any[]>()
+
+  for (const detail of salesDetails) {
+    if (!detailsMap.has(detail.saleMasterId)) {
+      detailsMap.set(detail.saleMasterId, [])
+    }
+    detailsMap.get(detail.saleMasterId)!.push(detail)
+  }
+
+  /* -------------------------------------------------
+   * 5. Attach details to masters
+   * ------------------------------------------------- */
+  const result = salesMasters.map((sale) => ({
+    ...sale,
+    Details: detailsMap.get(sale.saleMasterId) ?? [],
+  }))
+
+  return result
 }
+
+
+
+
+// update sale and its items
 
 export const updateSale = async (
   id: number,
@@ -115,6 +255,8 @@ export const updateSale = async (
   })
 }
 
+
+// delete sale by id
 export const deleteSale = async (id: number) => {
   await db.delete(salesMasterModel).where(eq(salesMasterModel.saleMasterId, id))
 }
