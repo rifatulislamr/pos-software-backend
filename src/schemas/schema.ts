@@ -103,7 +103,8 @@ export const itemModel = mysqlTable('items', {
 
   // Identifiers
   sku: varchar('sku', { length: 100 }),
-  barcode: varchar('barcode', { length: 100 }),
+  barcode: varchar('barcode', { length: 100 }).unique(),
+
 
   // Inventory
   compositeItem: boolean('composite_item').default(false),

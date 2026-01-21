@@ -38,7 +38,7 @@ export const getAllSalesController = async (
 ) => {
   try {
     requirePermission(req, 'view_sale')
-    res.json({ status: 'success', data: await getAllSales() })
+    res.json(await getAllSales() )
   } catch (err) {
     next(err)
   }
