@@ -3,7 +3,6 @@ import { db } from '../config/database'
 import { BadRequestError } from './utils/errors.utils'
 import { categoryModel, itemModel, NewItem } from '../schemas'
 
-
 const generateBarcode = () => {
   // 12-digit numeric barcode
   return (
@@ -12,16 +11,6 @@ const generateBarcode = () => {
   )
 }
 
-
-// Create a new item
-// export const createItem = async (itemData: NewItem) => {
-//   try {
-//     const [newItem] = await db.insert(itemModel).values(itemData).$returningId()
-//     return newItem
-//   } catch (error) {
-//     throw error
-//   }
-// }
 export const createItem = async (itemData: NewItem) => {
   try {
     // Auto-generate barcode if not provided
@@ -46,17 +35,13 @@ export const createItem = async (itemData: NewItem) => {
       itemData.barcode = barcode
     }
 
-    const [newItem] = await db
-      .insert(itemModel)
-      .values(itemData)
-      .$returningId()
+    const [newItem] = await db.insert(itemModel).values(itemData).$returningId()
 
     return newItem
   } catch (error) {
     throw error
   }
 }
-
 
 // Get item by ID
 export const getItemById = async (itemId: number) => {
